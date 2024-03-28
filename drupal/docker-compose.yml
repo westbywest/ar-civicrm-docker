@@ -1,0 +1,117 @@
+version: "3.6"
+
+# AR Drupal/CiviCRM testing stack, env variables set in .env
+# Drupal UI accessible at http://ardev.localhost
+# Traefik dashboart accessible at http://ardev.localhost:8080
+# phpMyAdmin accessible at http://ardev.localhost:8090
+
+services:
+  db-civicrm:
+    image: mariadb:lts
+    volumes:
+      - ./db-civicrm:/var/lib/mysql
+      - ./archreactor/archreactor.org/civicrm.sql:/docker-entrypoint-initdb.d/start.sql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized", "--mariadbupgrade"]
+      interval: 100s
+      timeout: 5s
+      retries: 3
+    environment:
+      - MARIADB_ROOT_PASSWORD=mariaDBroot
+      - MARIADB_DATABASE=civicrm_civicrm
+      - MARIADB_USER=civicrm_civicrm
+      - MARIADB_PASSWORD=${CIVICRM_DB_PASS}
+
+  db-drupal:
+    image: mariadb:lts
+    volumes:
+      - ./db-drupal:/var/lib/mysql
+      - ./archreactor/archreactor.org/archreactor.sql:/docker-entrypoint-initdb.d/start.sql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized", "--mariadbupgrade"]
+      interval: 100s
+      timeout: 5s
+      retries: 3
+    environment:
+      - MARIADB_ROOT_PASSWORD=mariaDBroot
+      - MARIADB_DATABASE=civicrm_drupal
+      - MARIADB_USER=civicrm_drupal
+      - MARIADB_PASSWORD=${DRUPAL_DB_PASS}
+
+  civicrm:
+    depends_on:
+      - db-civicrm
+      - db-drupal
+    # image: michaelmcandrew/civicrm:drupal
+    build:
+        context: ./civicrm-docker-custom
+        dockerfile: Dockerfile-d7-php7.4
+    environment:
+      - PROJECT_NAME=ardev
+      - BASE_URL=http://ardev.localhost
+      - CIVICRM_DB_NAME=civicrm_civicrm
+      - CIVICRM_DB_USER=civicrm_civicrm
+      - CIVICRM_DB_PASS=${CIVICRM_DB_PASS}
+      - CIVICRM_DB_HOST=db-civicrm
+      - CIVICRM_DB_PORT=3306
+      - CIVICRM_SITE_KEY=${CIVICRM_SITE_KEY}
+      - CIVICRM_CRED_KEYS=${CIVICRM_CRED_KEYS}
+      - CIVICRM_SIGN_KEYS=${CIVICRM_SIGN_KEYS}
+      - DRUPAL_DB_NAME=civicrm_drupal
+      - DRUPAL_DB_USER=civicrm_drupal
+      - DRUPAL_DB_PASS=${DRUPAL_DB_PASS}
+      - DRUPAL_DB_HOST=db-drupal
+      - DRUPAL_DB_PORT=3306
+      - PHP_DATE_TIMEZONE="UTC"
+      - DEBUG=${CIVICRM_DEBUG:-OFF}
+    labels:
+    - "traefik.enable=true"
+    - "traefik.http.routers.civicrm.rule=Host(`ardev.localhost`)"
+    - "traefik.http.routers.civicrm.entrypoints=http"
+
+    volumes:
+      # - ./files:/var/www/html/sites/default/files
+      - ./archreactor/archreactor.org/htdocs:/var/www/html
+      - ./archreactor/private:/var/www/private
+      - ./civicrm-docker-custom/settings.php:/var/www/html/sites/default/settings.php
+      - ./civicrm-docker-custom/civicrm.settings.php:/var/www/html/sites/default/civicrm.settings.php
+      - ./state:/state
+      - ./.bash_history:/home/civicrm/.bash_history
+
+  phpmyadmin:
+    image: phpmyadmin
+    container_name: phpmyadmin
+    links:
+      - db-civicrm
+      - db-drupal
+    environment:
+      PMA_HOSTS: db-civicrm,db-drupal
+      PMA_PORT: 3306
+      PMA_ARBITRARY: 1
+    restart: always
+    labels:
+    - "traefik.enable=true"
+    - "traefik.http.routers.phpmyadmin.rule=Host(`ardev.localhost`)"
+    - "traefik.http.routers.phpmyadmin.entrypoints=dba"
+
+  traefik:
+    image: traefik
+    hostname: traefik
+    command:
+      # - --log.level=DEBUG
+      - --log.level=INFO
+      - --api.insecure=true
+      - --api.dashboard=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker=true
+      - --entrypoints.http.address=:80
+      - --entrypoints.dba.address=:8090
+    ports:
+      - 80:80
+      - 8080:8080 # traefik dashboard
+      - 8090:8090 # phpmyadmin
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
