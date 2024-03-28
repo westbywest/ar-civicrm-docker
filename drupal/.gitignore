@@ -1,0 +1,11 @@
+.env
+state
+.bash_history
+docker-compose.yml
+# Ignore site files
+files/
+# Ignore MariaDB volumes
+db-civicrm/
+db-drupal/
+# Ignore site backup contents
+archreactor/

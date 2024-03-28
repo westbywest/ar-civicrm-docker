@@ -1,0 +1,26 @@
+version: "3.6"
+services:
+  civicrm:
+    image: michaelmcandrew/civicrm:drupal
+    hostname: example
+    environment:
+      - PROJECT_NAME=example
+      - BASE_URL=https://example.org
+      - CIVICRM_DB_NAME=example_civicrm
+      - CIVICRM_DB_USER=example
+      - CIVICRM_DB_PASS
+      - CIVICRM_DB_HOST=mysql.example.org
+      - CIVICRM_DB_PORT=3306
+      - DRUPAL_DB_NAME=example_drupal
+      - DRUPAL_DB_USER=example
+      - DRUPAL_DB_PASS
+      - DRUPAL_DB_HOST=mysql.example.org
+      - DRUPAL_DB_PORT=3306
+      - PHP_DATE_TIMEZONE="UTC"
+    volumes:
+      - files:/var/www/html/sites/default/files
+      - ./state:/state
+      - ./.bash_history:/home/civicrm/.bash_history
+    restart: always
+volumes:
+  files:
