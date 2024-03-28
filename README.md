@@ -4,12 +4,16 @@ Docker environment to stand up Drupal+CiviCRM for Arch Reactor website testing.
 ## Directory Structure
 `drupal`:  
 Contents copied and adapted from https://lab.civicrm.org/michaelmcandrew/civicrm-docker/-/blob/master/5/drupal
+
 `drupal/archreactor`:  
 Folder of expanded contents of site backup tarball, expecting subfolders `archreactor.org` and `private`
+
 `drupal/civicrm-docker-custom`:  
 Customized Dockerfiles and associated assets
+
 `drupal/db-civicrm`:  
 MariaDB volume for CiviCRM database
+
 `drupal/db-drupal`:  
 MariaDB volume for Drupal database
 
